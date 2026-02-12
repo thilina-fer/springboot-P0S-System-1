@@ -6,6 +6,7 @@ import com.example.springbootposbackend.service.CustomerService;
 import com.example.springbootposbackend.dto.CustomerDTO;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
+import org.modelmapper.TypeToken;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -35,6 +36,7 @@ public class CustomerServiceIMPL implements CustomerService {
 
     @Override
     public List<CustomerDTO> getAllCustomer() {
-        return List.of();
+        List<Customer> customers = customerRepo.findAll();
+        return modelMapper.map(customers, new TypeToken<List<CustomerDTO>>() {}.getType());
     }
 }

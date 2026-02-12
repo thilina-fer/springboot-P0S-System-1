@@ -11,6 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RequestMapping("/api/v1/customers")
 @RestController
 @RequiredArgsConstructor
@@ -37,4 +39,11 @@ public class CustomerController {
         customerServiceIMPL.deleteCustomer(customerId);
         return new ResponseEntity<>(new APIResponse<>(200, "Customer deleted successfully", null), HttpStatus.OK);
     }
+
+    @GetMapping
+    public ResponseEntity <APIResponse<List<CustomerDTO>>> getAllCustomers() {
+        List<CustomerDTO> customers = customerServiceIMPL.getAllCustomer();
+        return new ResponseEntity<>(new APIResponse<>(200, "Customers retrieved successfully", customers), HttpStatus.OK);
+    }
+
 }
