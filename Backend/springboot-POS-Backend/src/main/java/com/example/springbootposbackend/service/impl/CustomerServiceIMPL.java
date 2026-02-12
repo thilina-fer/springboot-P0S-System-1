@@ -29,7 +29,7 @@ public class CustomerServiceIMPL implements CustomerService {
     }
 
     @Override
-    public void deleteCustomer(String customerId) {
+    public void deleteCustomer(long customerId) {
         customerRepo.deleteById(Long.valueOf(customerId));
 
     }

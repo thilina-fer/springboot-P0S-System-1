@@ -35,7 +35,7 @@ public class CustomerController {
     }
 
     @DeleteMapping("/{customerId}")
-    public ResponseEntity <APIResponse<String>> deleteCustomer(@PathVariable String customerId) {
+    public ResponseEntity <APIResponse<String>> deleteCustomer(@PathVariable long customerId) {
         customerServiceIMPL.deleteCustomer(customerId);
         return new ResponseEntity<>(new APIResponse<>(200, "Customer deleted successfully", null), HttpStatus.OK);
     }
