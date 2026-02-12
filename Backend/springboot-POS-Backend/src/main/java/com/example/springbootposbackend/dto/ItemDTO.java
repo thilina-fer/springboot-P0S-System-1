@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 public class ItemDTO {
 
     @Pattern(regexp = "^\\d+$", message = "Item ID must be a valid integer")
-    private int id;
+    private Long id;
 
     @NotBlank(message = "Item description cannot be blank")
     private String description;
