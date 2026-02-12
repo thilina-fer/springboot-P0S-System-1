@@ -25,11 +25,11 @@ public class CustomerServiceIMPL implements CustomerService {
     @Override
     public void updateCustomer(CustomerDTO customerDTO) {
         customerRepo.save(modelMapper.map(customerDTO, Customer.class));
-
     }
 
     @Override
     public void deleteCustomer(String customerId) {
+        customerRepo.deleteById(Long.valueOf(customerId));
 
     }
 

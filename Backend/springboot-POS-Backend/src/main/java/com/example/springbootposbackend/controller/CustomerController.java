@@ -25,4 +25,16 @@ public class CustomerController {
         customerServiceIMPL.saveCustomer(customerDTO);
         return new ResponseEntity<>(new APIResponse<>(201, "Customer saved successfully", null), HttpStatus.CREATED);
     }
+
+    @PutMapping
+    public ResponseEntity <APIResponse<String>> updateCustomer(@RequestBody CustomerDTO customerDTO) {
+        customerServiceIMPL.updateCustomer(customerDTO);
+        return new ResponseEntity<>(new APIResponse<>(200, "Customer updated successfully", null), HttpStatus.OK);
+    }
+
+    @DeleteMapping("/{customerId}")
+    public ResponseEntity <APIResponse<String>> deleteCustomer(@PathVariable String customerId) {
+        customerServiceIMPL.deleteCustomer(customerId);
+        return new ResponseEntity<>(new APIResponse<>(200, "Customer deleted successfully", null), HttpStatus.OK);
+    }
 }
