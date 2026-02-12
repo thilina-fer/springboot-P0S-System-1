@@ -31,4 +31,12 @@ public class ItemController {
         return new ResponseEntity<>(new APIResponse<>(200, "Item updated successfully", null), HttpStatus.OK);
     }
 
+    @DeleteMapping("/{id}")
+    public ResponseEntity <APIResponse<String>> deleteItem(@PathVariable long id) {
+        itemServiceIMPL.deleteItem(id);
+        return new ResponseEntity<>(new APIResponse<>(200, "Item deleted successfully", null), HttpStatus.OK);
+    }
+
+
+
 }
