@@ -24,6 +24,7 @@ public class CustomerServiceIMPL implements CustomerService {
 
     @Override
     public void updateCustomer(CustomerDTO customerDTO) {
+        customerRepo.save(modelMapper.map(customerDTO, Customer.class));
 
     }
 
