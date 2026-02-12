@@ -5,6 +5,7 @@ import com.example.springbootposbackend.repository.CustomerRepo;
 import com.example.springbootposbackend.service.CustomerService;
 import com.example.springbootposbackend.dto.CustomerDTO;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.annotations.NotFound;
 import org.modelmapper.ModelMapper;
 import org.modelmapper.TypeToken;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,12 @@ public class CustomerServiceIMPL implements CustomerService {
 
     @Override
     public void updateCustomer(CustomerDTO customerDTO) {
+
+//        customerRepo.findById(customerDTO.getId())
+//                .orElseThrow(() ->
+//                        new NullPointerException("Customer with ID " + customerDTO.getId() + " not found.")
+//                );
+
         customerRepo.save(modelMapper.map(customerDTO, Customer.class));
     }
 

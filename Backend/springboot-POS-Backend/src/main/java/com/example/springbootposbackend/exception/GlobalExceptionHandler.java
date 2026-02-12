@@ -2,6 +2,7 @@ package com.example.springbootposbackend.exception;
 
 
 import com.example.springbootposbackend.util.APIResponse;
+import org.springframework.data.crossstore.ChangeSetPersister;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -29,6 +30,15 @@ public class GlobalExceptionHandler {
                 "Null Values are Not Allowed",
                 ex.getMessage()
         ),HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(ChangeSetPersister.NotFoundException.class)
+    public ResponseEntity<APIResponse<String>> handleNotFoundException(ChangeSetPersister.NotFoundException ex) {
+        return new ResponseEntity<>(new APIResponse<>(
+                HttpStatus.NOT_FOUND.value(),
+                "Resource Not Found",
+                ex.getMessage()
+        ),HttpStatus.NOT_FOUND);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
