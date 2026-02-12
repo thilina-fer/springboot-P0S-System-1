@@ -37,6 +37,12 @@ public class ItemController {
         return new ResponseEntity<>(new APIResponse<>(200, "Item deleted successfully", null), HttpStatus.OK);
     }
 
+    @GetMapping
+    public ResponseEntity <APIResponse<Iterable<ItemDTO>>> getAllItems() {
+        Iterable<ItemDTO> itemDTOs = itemServiceIMPL.getAllItems();
+        return new ResponseEntity<>(new APIResponse<>(200, "Items retrieved successfully", itemDTOs), HttpStatus.OK);
+    }
+
 
 
 }
