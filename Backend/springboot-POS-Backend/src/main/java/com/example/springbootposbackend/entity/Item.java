@@ -15,7 +15,7 @@ import lombok.NoArgsConstructor;
 public class Item {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id; // String nethuwa Long danna identity use karanawanam
+    private Long id; // String nethuwa Long danna identity use karanawanam
     private String description;
     private double unitPrice;
     private int qtyOnHand;
