@@ -13,7 +13,7 @@ import java.util.List;
 @Data
 
 public class OrderDTO {
-    private int orderId;
+    private Long orderId;
 
     @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$" , message = "Date must be in the format YYYY-MM-DD") /*YYYY-MM-DD*/
     private LocalDate date;
