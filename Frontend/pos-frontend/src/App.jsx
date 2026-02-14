@@ -1,35 +1,46 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React, { useEffect, useState } from "react";
+import AppRouter from "./routes/AppRouter";
+import Toast from "./components/ui/Toast";
 
-function App() {
-  const [count, setCount] = useState(0)
+export const AppCtx = React.createContext(null);
+
+export default function App() {
+  const [customers, setCustomers] = useState([]);
+  const [items, setItems] = useState([]);
+  const [orders, setOrders] = useState([]);
+
+  const [toast, setToast] = useState(null);
+
+  const [orderSeq, setOrderSeq] = useState(1);
+
+  const showToast = (message, type = "info") => {
+    setToast({ id: Date.now(), message, type });
+  };
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2800);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  const ctxValue = {
+    customers,
+    setCustomers,
+    items,
+    setItems,
+    orders,
+    setOrders,
+    orderSeq,
+    setOrderSeq,
+    showToast,
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    <AppCtx.Provider value={ctxValue}>
+      <div className="min-h-screen bg-zinc-950 text-white">
+        <AppRouter />
+        <Toast toast={toast} onClose={() => setToast(null)} />
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    </AppCtx.Provider>
+  );
 }
-
-export default App
