@@ -1,9 +1,17 @@
-import React, { useContext, useMemo, useState } from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import { AppCtx } from "../App";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import Select from "../components/ui/Select";
-import { ArrowDownAZ, ArrowUpAZ, BadgeCheck, Package, Pencil, Search, Trash2 } from "lucide-react";
+import {
+  BadgeCheck,
+  Package,
+  Pencil,
+  Search,
+  Trash2,
+  RefreshCw,
+} from "lucide-react";
+import { itemApi } from "../api/itemApi";
 
 const sorters = {
   none: { label: "Sort: None" },
@@ -25,6 +33,8 @@ export default function Items() {
 
   const [editId, setEditId] = useState(null);
   const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const resetForm = () => {
     setDescription("");
@@ -37,61 +47,114 @@ export default function Items() {
   const validate = () => {
     const e = {};
     if (!description.trim()) e.description = "Description is required";
+
     const p = Number(unitPrice);
     const q = Number(qtyOnHand);
-    if (unitPrice === "" || Number.isNaN(p) || p <= 0) e.unitPrice = "Unit Price must be a valid number > 0";
-    if (qtyOnHand === "" || Number.isNaN(q) || q < 0) e.qtyOnHand = "Qty On Hand must be 0 or more";
+
+    if (unitPrice === "" || Number.isNaN(p) || p <= 0)
+      e.unitPrice = "Unit Price must be > 0";
+    if (qtyOnHand === "" || Number.isNaN(q) || q < 0)
+      e.qtyOnHand = "Qty On Hand must be 0 or more";
+
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const onSave = () => {
+  const loadItems = async () => {
+    try {
+      setLoading(true);
+      const data = await itemApi.getAll();
+      setItems(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+      showToast("Failed to load items", "error");
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadItems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const onSave = async () => {
     if (!validate()) return;
 
-    const payload = {
+    const payloadBase = {
       description: description.trim(),
       unitPrice: Number(unitPrice),
       qtyOnHand: Number(qtyOnHand),
     };
 
-    if (editId) {
-      setItems((prev) => prev.map((it) => (it.id === editId ? { ...it, ...payload } : it)));
-      showToast("Item updated", "success");
-      resetForm();
-      return;
-    }
+    try {
+      setSaving(true);
 
-    const newItem = { id: crypto.randomUUID(), ...payload };
-    setItems((prev) => [newItem, ...prev]);
-    showToast("Item saved", "success");
-    resetForm();
+      if (editId) {
+        // PUT /items (backend expects id inside body)
+        await itemApi.update({ id: editId, ...payloadBase });
+        showToast("Item updated", "success");
+      } else {
+        // POST /items
+        await itemApi.save(payloadBase);
+        showToast("Item saved", "success");
+      }
+
+      resetForm();
+      await loadItems(); // sync from DB
+    } catch (err) {
+      console.error(err);
+      showToast("Operation failed. Check backend / CORS.", "error");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const onEdit = (it) => {
     setEditId(it.id);
-    setDescription(it.description);
-    setUnitPrice(String(it.unitPrice));
-    setQtyOnHand(String(it.qtyOnHand));
+    setDescription(it.description ?? "");
+    setUnitPrice(String(it.unitPrice ?? ""));
+    setQtyOnHand(String(it.qtyOnHand ?? ""));
     setErrors({});
   };
 
-  const onDelete = (id) => {
-    setItems((prev) => prev.filter((it) => it.id !== id));
-    showToast("Item deleted", "success");
-    if (editId === id) resetForm();
+  const onDelete = async (id) => {
+    try {
+      setSaving(true);
+      await itemApi.delete(id);
+      showToast("Item deleted", "success");
+      if (editId === id) resetForm();
+      await loadItems();
+    } catch (err) {
+      console.error(err);
+      showToast("Delete failed", "error");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const viewItems = useMemo(() => {
     const q = search.trim().toLowerCase();
-    let arr = q ? items.filter((it) => it.description.toLowerCase().includes(q)) : [...items];
+    let arr = q
+      ? items.filter((it) =>
+          String(it.description || "")
+            .toLowerCase()
+            .includes(q),
+        )
+      : [...items];
 
-    const sort = sortKey;
-    const byNum = (a, b, key, dir) => (dir === "asc" ? a[key] - b[key] : b[key] - a[key]);
+    const byNum = (a, b, key, dir) =>
+      dir === "asc" ? a[key] - b[key] : b[key] - a[key];
 
-    if (sort === "priceAsc") arr.sort((a, b) => byNum(a, b, "unitPrice", "asc"));
-    if (sort === "priceDesc") arr.sort((a, b) => byNum(a, b, "unitPrice", "desc"));
-    if (sort === "qtyAsc") arr.sort((a, b) => byNum(a, b, "qtyOnHand", "asc"));
-    if (sort === "qtyDesc") arr.sort((a, b) => byNum(a, b, "qtyOnHand", "desc"));
+    if (sortKey === "priceAsc")
+      arr.sort((a, b) => byNum(a, b, "unitPrice", "asc"));
+    if (sortKey === "priceDesc")
+      arr.sort((a, b) => byNum(a, b, "unitPrice", "desc"));
+    if (sortKey === "qtyAsc")
+      arr.sort((a, b) => byNum(a, b, "qtyOnHand", "asc"));
+    if (sortKey === "qtyDesc")
+      arr.sort((a, b) => byNum(a, b, "qtyOnHand", "desc"));
 
     return arr;
   }, [items, search, sortKey]);
@@ -102,18 +165,39 @@ export default function Items() {
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <div className="text-sm font-semibold">Item Manager</div>
-            <div className="mt-1 text-xs text-zinc-400">Cards grid • search & sort • local state only</div>
+            <div className="mt-1 text-xs text-zinc-400">
+              Cards grid • search & sort • backend synced
+            </div>
           </div>
 
-          {editId ? (
-            <div className="inline-flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-950/50 px-3 py-2 text-xs text-zinc-300">
-              <Pencil className="h-4 w-4 text-zinc-400" />
-              <span>Edit mode</span>
-              <Button variant="secondary" className="py-1.5 px-2.5" onClick={resetForm}>
-                Cancel
-              </Button>
-            </div>
-          ) : null}
+          <div className="flex items-center gap-2">
+            {editId ? (
+              <div className="inline-flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-950/50 px-3 py-2 text-xs text-zinc-300">
+                <Pencil className="h-4 w-4 text-zinc-400" />
+                <span>Edit mode</span>
+                <Button
+                  variant="secondary"
+                  className="py-1.5 px-2.5"
+                  onClick={resetForm}
+                  disabled={saving}
+                >
+                  Cancel
+                </Button>
+              </div>
+            ) : null}
+
+            <button
+              onClick={loadItems}
+              className="inline-flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-xs text-zinc-200 transition hover:bg-zinc-900 disabled:opacity-50"
+              disabled={loading}
+              title="Refresh"
+            >
+              <RefreshCw
+                className={`h-4 w-4 text-zinc-400 ${loading ? "animate-spin" : ""}`}
+              />
+              Refresh
+            </button>
+          </div>
         </div>
 
         <div className="mt-5 grid gap-4 md:grid-cols-3">
@@ -143,10 +227,19 @@ export default function Items() {
         </div>
 
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-          <Button onClick={onSave} className="w-full sm:w-auto">
-            {editId ? "Update Item" : "Save Item"}
+          <Button
+            onClick={onSave}
+            className="w-full sm:w-auto"
+            disabled={saving}
+          >
+            {saving ? "Saving..." : editId ? "Update Item" : "Save Item"}
           </Button>
-          <Button variant="secondary" onClick={resetForm} className="w-full sm:w-auto">
+          <Button
+            variant="secondary"
+            onClick={resetForm}
+            className="w-full sm:w-auto"
+            disabled={saving}
+          >
             Clear
           </Button>
         </div>
@@ -168,7 +261,10 @@ export default function Items() {
             </div>
 
             <div className="w-full md:w-56">
-              <Select value={sortKey} onChange={(e) => setSortKey(e.target.value)}>
+              <Select
+                value={sortKey}
+                onChange={(e) => setSortKey(e.target.value)}
+              >
                 {Object.entries(sorters).map(([k, v]) => (
                   <option key={k} value={k}>
                     {v.label}
@@ -180,18 +276,27 @@ export default function Items() {
         </div>
 
         <div className="p-4">
-          {viewItems.length === 0 ? (
+          {loading ? (
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-10 text-center">
+              <div className="text-sm font-medium">Loading items...</div>
+              <div className="mt-1 text-xs text-zinc-500">
+                Fetching from backend
+              </div>
+            </div>
+          ) : viewItems.length === 0 ? (
             <div className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-10 text-center">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-900/40">
                 <Package className="h-6 w-6 text-zinc-400" />
               </div>
               <div className="mt-4 text-sm font-medium">No items yet</div>
-              <div className="mt-1 text-xs text-zinc-500">Create your first item using the form above.</div>
+              <div className="mt-1 text-xs text-zinc-500">
+                Create your first item using the form above.
+              </div>
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {viewItems.map((it) => {
-                const low = it.qtyOnHand < 5;
+                const low = Number(it.qtyOnHand) < 5;
                 return (
                   <div
                     key={it.id}
@@ -199,12 +304,18 @@ export default function Items() {
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold">{it.description}</div>
-                        <div className="mt-1 text-xs text-zinc-400">
-                          Unit Price: <span className="text-zinc-200">Rs {it.unitPrice.toFixed(2)}</span>
+                        <div className="truncate text-sm font-semibold">
+                          {it.description}
                         </div>
                         <div className="mt-1 text-xs text-zinc-400">
-                          Qty On Hand: <span className="text-zinc-200">{it.qtyOnHand}</span>
+                          Unit Price:{" "}
+                          <span className="text-zinc-200">
+                            Rs {Number(it.unitPrice).toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="mt-1 text-xs text-zinc-400">
+                          Qty On Hand:{" "}
+                          <span className="text-zinc-200">{it.qtyOnHand}</span>
                         </div>
                       </div>
 
@@ -229,14 +340,16 @@ export default function Items() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => onEdit(it)}
-                          className="inline-flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-xs text-zinc-200 transition hover:bg-zinc-900"
+                          disabled={saving}
+                          className="inline-flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-xs text-zinc-200 transition hover:bg-zinc-900 disabled:opacity-50"
                         >
                           <Pencil className="h-4 w-4 text-zinc-400" />
                           Edit
                         </button>
                         <button
                           onClick={() => onDelete(it.id)}
-                          className="inline-flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-xs text-zinc-200 transition hover:bg-zinc-900"
+                          disabled={saving}
+                          className="inline-flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-xs text-zinc-200 transition hover:bg-zinc-900 disabled:opacity-50"
                         >
                           <Trash2 className="h-4 w-4 text-red-500" />
                           Delete
@@ -251,7 +364,7 @@ export default function Items() {
         </div>
 
         <div className="border-t border-zinc-800 p-4 text-xs text-zinc-500">
-          Sort: Price/QTY • Responsive card grid
+          Sort: Price/QTY • Responsive card grid • backend synced
         </div>
       </div>
     </div>

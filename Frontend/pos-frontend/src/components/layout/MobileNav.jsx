@@ -15,7 +15,7 @@ const Item = ({ to, icon: Icon, label }) => (
     <Icon className="h-5 w-5" />
     <span className="font-medium">{label}</span>
   </NavLink>
-);
+);  
 
 export default function MobileNav() {
   return (
