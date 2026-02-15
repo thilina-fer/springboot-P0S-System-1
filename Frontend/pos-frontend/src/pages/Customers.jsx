@@ -1,8 +1,9 @@
-import React, { useContext, useMemo, useState } from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import { AppCtx } from "../App";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
-import { Pencil, Search, Trash2, X } from "lucide-react";
+import { Pencil, Search, Trash2, X, RefreshCw } from "lucide-react";
+import { customerApi } from "../api/customerApi";
 
 export default function Customers() {
   const { customers, setCustomers, showToast } = useContext(AppCtx);
@@ -12,15 +13,21 @@ export default function Customers() {
   const [search, setSearch] = useState("");
 
   const [editId, setEditId] = useState(null);
-
   const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return customers;
     return customers.filter(
       (c) =>
-        c.name.toLowerCase().includes(q) || c.address.toLowerCase().includes(q)
+        String(c.name || "")
+          .toLowerCase()
+          .includes(q) ||
+        String(c.address || "")
+          .toLowerCase()
+          .includes(q),
     );
   }, [customers, search]);
 
@@ -39,39 +46,76 @@ export default function Customers() {
     return Object.keys(e).length === 0;
   };
 
-  const onSave = () => {
+  const loadCustomers = async () => {
+    try {
+      setLoading(true);
+      const data = await customerApi.getAll(); // returns res.data.data
+      setCustomers(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+      showToast("Failed to load customers", "error");
+      setCustomers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCustomers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const onSave = async () => {
     if (!validate()) return;
 
-    if (editId) {
-      setCustomers((prev) =>
-        prev.map((c) => (c.id === editId ? { ...c, name: name.trim(), address: address.trim() } : c))
-      );
-      showToast("Customer updated", "success");
-      resetForm();
-      return;
-    }
-
-    const newCustomer = {
-      id: crypto.randomUUID(),
+    const payloadBase = {
       name: name.trim(),
       address: address.trim(),
     };
-    setCustomers((prev) => [newCustomer, ...prev]);
-    showToast("Customer saved", "success");
-    resetForm();
+
+    try {
+      setSaving(true);
+
+      if (editId) {
+        // PUT /customers (backend expects id inside body)
+        await customerApi.update({ id: editId, ...payloadBase });
+        showToast("Customer updated", "success");
+      } else {
+        // POST /customers
+        await customerApi.save(payloadBase);
+        showToast("Customer saved", "success");
+      }
+
+      resetForm();
+      await loadCustomers(); // sync UI with DB
+    } catch (err) {
+      console.error(err);
+      showToast("Operation failed. Check backend / CORS.", "error");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const onEdit = (c) => {
     setEditId(c.id);
-    setName(c.name);
-    setAddress(c.address);
+    setName(c.name ?? "");
+    setAddress(c.address ?? "");
     setErrors({});
   };
 
-  const onDelete = (id) => {
-    setCustomers((prev) => prev.filter((c) => c.id !== id));
-    showToast("Customer deleted", "success");
-    if (editId === id) resetForm();
+  const onDelete = async (id) => {
+    try {
+      setSaving(true);
+      await customerApi.delete(id);
+      showToast("Customer deleted", "success");
+      if (editId === id) resetForm();
+      await loadCustomers();
+    } catch (err) {
+      console.error(err);
+      showToast("Delete failed", "error");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -81,23 +125,38 @@ export default function Customers() {
           <div className="min-w-0">
             <div className="text-sm font-semibold">Customer Manager</div>
             <div className="mt-1 text-xs text-zinc-400">
-              Add, edit, and manage customers (local state only).
+              Add, edit, and manage customers (backend connected).
             </div>
           </div>
 
-          {editId ? (
-            <div className="inline-flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-950/50 px-3 py-2 text-xs text-zinc-300">
-              <Pencil className="h-4 w-4 text-zinc-400" />
-              <span>Edit mode</span>
-              <button
-                onClick={resetForm}
-                className="ml-2 inline-flex items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-900/40 px-2 py-1 text-zinc-200 transition hover:bg-zinc-900"
-              >
-                <X className="h-3.5 w-3.5" />
-                Cancel
-              </button>
-            </div>
-          ) : null}
+          <div className="flex items-center gap-2">
+            {editId ? (
+              <div className="inline-flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-950/50 px-3 py-2 text-xs text-zinc-300">
+                <Pencil className="h-4 w-4 text-zinc-400" />
+                <span>Edit mode</span>
+                <button
+                  onClick={resetForm}
+                  className="ml-2 inline-flex items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-900/40 px-2 py-1 text-zinc-200 transition hover:bg-zinc-900"
+                  disabled={saving}
+                >
+                  <X className="h-3.5 w-3.5" />
+                  Cancel
+                </button>
+              </div>
+            ) : null}
+
+            <button
+              onClick={loadCustomers}
+              className="inline-flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-xs text-zinc-200 transition hover:bg-zinc-900 disabled:opacity-50"
+              disabled={loading}
+              title="Refresh"
+            >
+              <RefreshCw
+                className={`h-4 w-4 text-zinc-400 ${loading ? "animate-spin" : ""}`}
+              />
+              Refresh
+            </button>
+          </div>
         </div>
 
         <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -118,10 +177,23 @@ export default function Customers() {
         </div>
 
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-          <Button onClick={onSave} className="sm:w-auto w-full">
-            {editId ? "Update Customer" : "Save Customer"}
+          <Button
+            onClick={onSave}
+            className="sm:w-auto w-full"
+            disabled={saving}
+          >
+            {saving
+              ? "Saving..."
+              : editId
+                ? "Update Customer"
+                : "Save Customer"}
           </Button>
-          <Button variant="secondary" onClick={resetForm} className="sm:w-auto w-full">
+          <Button
+            variant="secondary"
+            onClick={resetForm}
+            className="sm:w-auto w-full"
+            disabled={saving}
+          >
             Clear
           </Button>
         </div>
@@ -152,7 +224,18 @@ export default function Customers() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={4} className="px-4 py-10 text-center">
+                    <div className="text-sm font-medium">
+                      Loading customers...
+                    </div>
+                    <div className="mt-1 text-xs text-zinc-500">
+                      Fetching from backend
+                    </div>
+                  </td>
+                </tr>
+              ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-4 py-10 text-center">
                     <div className="text-sm font-medium">No customers yet</div>
@@ -163,7 +246,10 @@ export default function Customers() {
                 </tr>
               ) : (
                 filtered.map((c, idx) => (
-                  <tr key={c.id} className="border-b border-zinc-800/70 hover:bg-zinc-950/40 transition">
+                  <tr
+                    key={c.id}
+                    className="border-b border-zinc-800/70 hover:bg-zinc-950/40 transition"
+                  >
                     <td className="px-4 py-3 text-zinc-400">{idx + 1}</td>
                     <td className="px-4 py-3 font-medium">{c.name}</td>
                     <td className="px-4 py-3 text-zinc-300">{c.address}</td>
@@ -171,14 +257,16 @@ export default function Customers() {
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => onEdit(c)}
-                          className="inline-flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-xs text-zinc-200 transition hover:bg-zinc-900"
+                          disabled={saving}
+                          className="inline-flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-xs text-zinc-200 transition hover:bg-zinc-900 disabled:opacity-50"
                         >
                           <Pencil className="h-4 w-4 text-zinc-400" />
                           Edit
                         </button>
                         <button
                           onClick={() => onDelete(c.id)}
-                          className="inline-flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-xs text-zinc-200 transition hover:bg-zinc-900"
+                          disabled={saving}
+                          className="inline-flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-xs text-zinc-200 transition hover:bg-zinc-900 disabled:opacity-50"
                         >
                           <Trash2 className="h-4 w-4 text-red-500" />
                           Delete
@@ -193,7 +281,7 @@ export default function Customers() {
         </div>
 
         <div className="border-t border-zinc-800 p-4 text-xs text-zinc-500">
-          Table view only • sticky header • local state
+          Table view only • sticky header • backend synced
         </div>
       </div>
     </div>
