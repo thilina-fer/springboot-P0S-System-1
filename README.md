@@ -4,6 +4,18 @@ NextGen POS is a full-stack Point of Sale system built using Spring Boot (Backen
 This project demonstrates a complete POS workflow including Customer Management, Item Management, and Order Processing with automatic stock updates.
 
 ----------------------------------------
+VIDEO DEMONSTRATION
+----------------------------------------
+
+🎥 **Watch the Project Walkthrough:** [SPRING BOOT POS SYSTEM - Thilina Dilshan](https://youtu.be/cUrK7aXWcEo?si=R20E7HBYYmE9yDKT)
+
+In this video, I demonstrate:
+- System functionality (Customer, Item, and Order Management)
+- Project architecture and folder structure
+- In-depth explanation of Spring Boot annotations used (`@RestController`, `@Service`, `@Transactional`, etc.)
+- Database integration with MySQL
+
+----------------------------------------
 PROJECT STRUCTURE
 ----------------------------------------
 
@@ -183,4 +195,4 @@ Order Flow:
 AUTHOR
 ----------------------------------------
 
-Dilshan Thilina 
+Dilshan Thilina
